@@ -81,6 +81,8 @@ static int __must_check switch_readblock(struct ringbuf * const rb)
 	blocknum = offset_to_blocknum(atomic_read(&rb->head));
 	readblock_id = atomic_read(&rb->read_map) & RB_BLOCKID_MASK;
 	switchwith_id = atomic_read(&rb->block_map[blocknum]) & RB_BLOCKID_MASK;
+	if (!atomic_read(&rb->blocks[switchwith_id].occupied))
+		return 1;
 	/* check if used by the writer and switch atomically */
 	if (atomic_cmpxchg(&rb->block_map[blocknum], switchwith_id, readblock_id)
 			!= switchwith_id)
@@ -98,7 +100,7 @@ void * __must_check ringbuf_read(struct ringbuf * const rb)
 	struct block *readblock = readblock_get(rb);
 
 entry:
-	if (!(occupied = atomic_read(&readblock->occupied))) {
+	while (!(occupied = atomic_read(&readblock->occupied))) {
 		if (switch_readblock(rb))
 			return NULL;
 		readblock = readblock_get(rb);
