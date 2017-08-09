@@ -34,7 +34,6 @@ enum log_type {
 };
 
 struct log_entry {
-	struct list_head list;
 	ulong id;
 	enum log_type log_type;
 	struct {
@@ -52,6 +51,8 @@ struct log_entry {
 		char filename[PATH_MAX + 1];
 	} file;
 };
+
+#include "net.c"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 /* introduced in 6d7581e62f8be462440d7b22c6361f7c9fa4902b */
@@ -123,6 +124,8 @@ static int __must_check is_reader_or_child(void)
 {
 	struct task_struct *t, *prev;
 	t = current;
+	if (t->pid == 0)
+		return true;
 	do {
 		if (t->pid == proc_reader)
 			return true;
@@ -159,6 +162,9 @@ static int __must_check log_common(struct log_entry *entry,
 int __must_check log_socket(const struct sockaddr_storage *const saddr)
 {
 	struct commit_s commit = { .size = sizeof(struct log_entry) };
+	if (proc_reader && is_reader_or_child()) {
+		return 0;
+	}
 	struct log_entry *entry = ringbuf_reserve(&rbuf, &commit);
 	if (!entry)
 		return -EFAULT;
@@ -171,6 +177,9 @@ int __must_check log_socket(const struct sockaddr_storage *const saddr)
 int __must_check log_process(void)
 {
 	struct commit_s commit = { .size = sizeof(struct log_entry) };
+	if (proc_reader && is_reader_or_child()) {
+		return 0;
+	}
 	struct log_entry *entry = ringbuf_reserve(&rbuf, &commit);
 	if (!entry)
 		return -EFAULT;
@@ -183,6 +192,9 @@ int __must_check log_process(void)
 int __must_check log_file(const char *const filename)
 {
 	struct commit_s commit = { .size = sizeof(struct log_entry) };
+	if (proc_reader && is_reader_or_child()) {
+		return 0;
+	}
 	struct log_entry *entry = ringbuf_reserve(&rbuf, &commit);
 	if (!entry)
 		return -EFAULT;
@@ -197,6 +209,8 @@ int __must_check proc_init(void)
 {
 	ringbuf_init(&rbuf);
 
+	nl_init();
+
 	struct proc_dir_entry *de = proc_create(PROCNAME, 0, NULL, &proc_fops);
 	if (IS_ERR(de))
 		return PTR_ERR(de);
@@ -207,6 +221,8 @@ int __must_check proc_init(void)
 void proc_cleanup(void)
 {
 	remove_proc_entry(PROCNAME, NULL);
+
+	nl_cleanup();
 
 	ringbuf_free(&rbuf);
 }
