@@ -9,6 +9,7 @@
 
 #include <linux/atomic.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 #include <linux/highmem.h>
 
 struct block {
@@ -36,6 +37,7 @@ struct ringbuf {
 
 	atomic_t head; /* next byte to read */
 	atomic_t tail; /* next byte to write */
+	wait_queue_head_t read_wq;
 
 	struct block *blocks; /* array of storage blocks */
 };

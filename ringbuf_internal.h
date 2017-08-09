@@ -110,8 +110,10 @@ void finalize_commit(struct ringbuf * const rb, struct block * const block,
 		const ulong blocknum, const ulong bytes)
 {
 	check_overwrite(rb, block);
-	if (atomic_add_return(bytes, &block->occupied) == RB_BLOCK_SIZE)
+	if (atomic_add_return(bytes, &block->occupied) == RB_BLOCK_SIZE) {
 		block_release(rb, blocknum);
+		wake_up_interruptible(&rb->read_wq);
+	}
 }
 
 static inline

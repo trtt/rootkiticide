@@ -25,6 +25,7 @@ void ringbuf_init(struct ringbuf * const rb)
 		atomic_set(&rb->block_map[i], i);
 	}
 	atomic_set(&rb->read_map, RB_NUM_BLOCKS);
+	init_waitqueue_head(&rb->read_wq);
 }
 
 void ringbuf_free(struct ringbuf * const rb)
