@@ -9,6 +9,7 @@ ccflags-y += -Wframe-larger-than=8192 # it's safe or not?
 
 all:
 	make -C $(KERNEL) M=$(PWD) modules
+	make LDFLAGS+='-lpthread' user
 	go build rkcdcli.go
 
 clean:
